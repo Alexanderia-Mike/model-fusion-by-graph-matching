@@ -1,6 +1,7 @@
-import torch
-import  ground_metric   as gm, \
-        gurobi_qap      as gb
+import  torch, \
+        ground_metric_gm    as gm, \
+        gurobi_qap          as gb,  \
+        model_gm            as model
 
 
 def total_node_num( network:torch.nn.Module ):
@@ -46,7 +47,7 @@ def graph_matching_fusion( args, networks:list ):
         it does not contain bias layers
     [conv_kernel_size_list] = [ kernel_size(1), ..., kernel_size(l) ]
     '''
-    # num_layers = len( list( zip( networks[0].parameters(), networks[1].parameters() ) ) )
+    num_layers = len( list( zip( networks[0].parameters(), networks[1].parameters() ) ) )
     num_nodes_before = 0
     num_nodes_incremental = []
     num_nodes_layers = []
@@ -56,9 +57,11 @@ def graph_matching_fusion( args, networks:list ):
     num_nodes_cur = 0
     is_conv = False
     pre_conv = False
-    is_bias = False
     pre_conv_kernel_size = None
+    is_bias = False
+    is_final_bias = False
 
+    named_weight_list_0 = [named_parameter for named_parameter in networks[0].named_parameters()]
     for idx, ( (_, fc_layer0_weight), (_, fc_layer1_weight) ) in \
             enumerate( zip( networks[0].named_parameters(), networks[1].named_parameters() ) ):
         assert fc_layer0_weight.shape == fc_layer1_weight.shape
@@ -71,7 +74,7 @@ def graph_matching_fusion( args, networks:list ):
             else:
                 num_nodes_pre = fc_layer0_weight.shape[1]
         '''
-        tell whether the layer is convolutional or fully-connected
+        tell whether the layer is convolutional or fully-connected or bias
         '''
         # if is_bias is False:
         #     pre_conv = is_conv
@@ -97,12 +100,26 @@ def graph_matching_fusion( args, networks:list ):
             fc_layer0_weight_data = fc_layer0_weight.data
             fc_layer1_weight_data = fc_layer1_weight.data
         '''
+        tell whether it's the final bias layer
+        '''
+        if is_bias is True and idx == num_layers - 1:
+            is_final_bias = True
+        '''
         if it's the first layer, map the input nodes
         '''
         if idx == 0:
             for a in range( num_nodes_pre ):
                 affinity[(num_nodes_before + a) * n2 + num_nodes_before + a] \
                         [(num_nodes_before + a) * n2 + num_nodes_before + a] \
+                = 1
+        '''
+        if it's the final layer, map the output nodes
+        '''
+        if  idx == num_layers - 2 and 'bias' in named_weight_list_0[idx+1][0] or \
+            idx == num_layers - 1 and 'bias' not in named_weight_list_0[idx][0]:
+            for a in range( num_nodes_cur ):
+                affinity[(num_nodes_before + num_nodes_pre + a) * n2 + num_nodes_before + num_nodes_pre + a] \
+                        [(num_nodes_before + num_nodes_pre + a) * n2 + num_nodes_before + num_nodes_pre + a] \
                 = 1
         '''
         calculate the edge-wise soft affinities between two models
@@ -119,7 +136,7 @@ def graph_matching_fusion( args, networks:list ):
         copy the affinity values from [layer_affinity] to the corresponding positions
             in [affinity] matrix
         '''
-        if is_bias is True:
+        if is_bias is True and is_final_bias is False:
             for a in range( num_nodes_cur ):
                 for c in range( num_nodes_cur ):
                     affinity[(num_nodes_before + a) * n2 + num_nodes_before + c] \
@@ -161,7 +178,6 @@ def graph_matching_fusion( args, networks:list ):
 
 
     '''
-    named_weight_list_0 = [named_parameter for named_parameter in networks[0].named_parameters()]
     aligned_wt_0 = [parameter.data for name, parameter in named_weight_list_0]
     idx = 0
     num_layers = len( aligned_wt_0 )
@@ -270,6 +286,19 @@ def graph_matching_fusion( args, networks:list ):
     return averaged_weights
 
 
+def get_fused_model( args, networks:list ):
+    '''
+    the input [parameters] is a list consisting of tensors
+    '''
+    parameters = graph_matching_fusion( args, networks )
+    fused_model = model.get_model_from_name( args )
+    state_dict = fused_model.state_dict()
+    for idx, (key, _) in enumerate( state_dict.items() ):
+        state_dict[key] = parameters[idx]
+    fused_model.load_state_dict( state_dict )
+    return fused_model
+
+
 
 if __name__ == "__main__":
     import torch.nn as nn
@@ -279,23 +308,21 @@ if __name__ == "__main__":
         __getattr__ = dict.get
         __setattr__ = dict.__setitem__
         __delattr__ = dict.__delitem__
-    args = dotdict( {"weight": [0.5, 0.5]} )
+    args = dotdict( {
+        "weight": [0.5, 0.5],
+        "model_name": "naivenet",
+        "dataset": "mnist",
+        "disable_bias": False,
+        "width_ratio": 1,
+        "num_hidden_nodes1": 20,
+        "num_hidden_nodes2": 30,
+        "num_hidden_nodes3": 10
+    } )
     '''
     define a very naive nueral network for testing purpose
     '''
-    class simple_net( nn.Module ):
-        def __init__( self ):
-            super( simple_net, self ).__init__()
-            self.lin1 = nn.Linear( 2, 3 )
-            self.lin2 = nn.Linear( 3, 2 )
-        def forward( self, x:torch.tensor ):
-            assert x.shape == torch.Size([2])
-            x = self.lin1( x )
-            x = F.relu( x )
-            x = self.lin2( x )
-            return x
-    model1 = simple_net()
-    model2 = simple_net()
+    model1 = model.naive_net()
+    model2 = model.naive_net()
     '''
     create two state_dict() instances to initialize two networks
     '''
@@ -325,23 +352,18 @@ if __name__ == "__main__":
     '''
     call the fusion function to check the affinity matrix and the solution
     '''
-    print( graph_matching_fusion( args, [model1, model2] ) )
+    # print( graph_matching_fusion( args, [model1, model2] ) )
+    print( get_fused_model( args, [model1, model2] ).state_dict() )
     # print('##########################################################')
+
+
     print('##########################################################')
     '''
     define a simple convolutional neural network
     '''
-    class simple_cnn( nn.Module ):
-        def __init__( self ):
-            super( simple_cnn, self ).__init__()
-            self.conv1 = nn.Conv2d( 1, 2, 2 )
-            self.fc1 = nn.Linear( 8, 2 )
-        def forward( self, x:torch.tensor ):
-            x = F.relu( self.conv1( x ) )
-            x = self.fc1( x )
-            return x
-    model3 = simple_cnn()
-    model4 = simple_cnn()
+    args.model_name = 'naivecnn'
+    model3 = model.naive_cnn()
+    model4 = model.naive_cnn()
     '''
     create two state_dict() instances to initialize two networks
     '''
@@ -368,5 +390,6 @@ if __name__ == "__main__":
     call the fusion function to check the affinity matrix and the solution
     '''
     # print('##########################################################')
-    print( graph_matching_fusion( args, [model3, model4] ) )
+    # print( graph_matching_fusion( args, [model3, model4] ) )
+    print( get_fused_model( args, [model3, model4] ).state_dict() )
     
