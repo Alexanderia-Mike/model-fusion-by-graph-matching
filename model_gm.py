@@ -25,7 +25,7 @@ def get_model_from_name(args, idx=-1):
     if args.model_name == 'net':
         return Net(args)
     elif args.model_name == 'simplenet':
-        return SimpleNet(args)
+        return SimpleAhaNet(args)
     elif args.model_name == 'smallmlpnet':
         return SmallMlpNet(args)
     elif args.model_name == 'mlpnet':
@@ -39,6 +39,8 @@ def get_model_from_name(args, idx=-1):
         return naive_net()
     elif args.model_name == 'naivecnn':
         return naive_cnn()
+    elif args.model_name == 'simplemnistnet':
+        return SimpleNet( args )
     ### my models end
     elif args.model_name[0:3] == 'vgg' or args.model_name[0:3] == 'res':
         if args.second_model_name is None or idx == 0:
@@ -73,6 +75,24 @@ class naive_cnn( nn.Module ):
         x = F.relu( self.conv1( x ) )
         x = self.fc1( x )
         return x
+    
+class SimpleNet( nn.Module ):
+    def __init__( self, args ):
+        super( SimpleNet, self ).__init__()
+        # TODO: add dropout
+        self.conv1 = nn.Conv2d( 1, args.hidden_size_1_conv, args.conv_kernel_size, padding=args.conv_padding, device=args.device, bias=args.bias )
+        self.maxpool = nn.MaxPool2d( args.maxpool_kernel_size, padding=args.maxpool_padding )
+        self.conv2 = nn.Conv2d( args.hidden_size_1_conv, args.hidden_size_2_conv, args.conv_kernel_size, padding=args.conv_padding, device=args.device, bias=args.bias )
+        self.fc1 = nn.Linear( args.input_size_fc, args.num_classes, device=args.device, bias=args.bias )
+        
+    def forward( self, x ):
+        output = F.relu( self.conv1( x ) )
+        output = self.maxpool( output )
+        output = F.relu( self.conv2( output ) )
+        output = self.maxpool( output )
+        output = output.view( output.shape[0], -1 )
+        output = self.fc1( output )
+        return output
 
 class LogisticRegressionModel(nn.Module):
     # default input and output dim for
@@ -102,9 +122,9 @@ class Net(nn.Module):
         return F.log_softmax(x)
 
 
-class SimpleNet(nn.Module):
+class SimpleAhaNet(nn.Module):
     def __init__(self, args):
-        super(SimpleNet, self).__init__()
+        super(SimpleAhaNet, self).__init__()
         self.fc1 = nn.Linear(784, args.num_hidden_nodes, bias= not args.disable_bias)
         self.fc2 = nn.Linear(args.num_hidden_nodes, 10, bias= not args.disable_bias)
         self.enable_dropout = args.enable_dropout

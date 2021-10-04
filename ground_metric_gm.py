@@ -11,7 +11,7 @@ class Ground_Metric_GM:
         conv_param:bool=False,
         bias_param:bool=False,
         pre_conv_param:bool=False,
-        pre_conv_kernel_size:int=None ):
+        pre_conv_image_size_squared:int=None ):
         '''
         if [bias_param] is True, the input parameters should be 1-d tensor of the size
             [cur_neuron_num]. Else:
@@ -24,7 +24,7 @@ class Ground_Metric_GM:
         '''
         self._sanity_check( 
             model_1_param, model_2_param, conv_param, bias_param, 
-            pre_conv_param, pre_conv_kernel_size )
+            pre_conv_param, pre_conv_image_size_squared )
         '''
         if [pre_conv_param] is False:
             transforms the parameters so that the ultimate params are of the size
@@ -49,8 +49,8 @@ class Ground_Metric_GM:
             self.model_2_param = self.model_2_param.reshape( 1, -1, 1 )
         # fully-connected from conv
         elif conv_param is False and pre_conv_param is True:
-            self.model_1_param = self.model_1_param.reshape( 1, -1, pre_conv_kernel_size**2 )
-            self.model_2_param = self.model_2_param.reshape( 1, -1, pre_conv_kernel_size**2 )
+            self.model_1_param = self.model_1_param.reshape( 1, -1, pre_conv_image_size_squared )
+            self.model_2_param = self.model_2_param.reshape( 1, -1, pre_conv_image_size_squared )
         # conv
         else:
             self.model_1_param = self.model_1_param.reshape( 1, -1, model_1_param.shape[-1] )
@@ -63,7 +63,7 @@ class Ground_Metric_GM:
         conv_param:bool, 
         bias_param:bool,
         pre_conv_param:bool,
-        pre_conv_kernel_size:int ):
+        pre_conv_image_size_squared:int ):
         assert model_1_param is not None
         assert model_2_param is not None
         if bias_param is True:
@@ -73,7 +73,7 @@ class Ground_Metric_GM:
         else:
             assert len( model_1_param.shape ) == 2
         if pre_conv_param is True:
-            assert type(pre_conv_kernel_size) == int
+            assert type(pre_conv_image_size_squared) == int
         assert model_1_param.shape == model_2_param.shape
 
     def process_distance( self, p:int=2 ):

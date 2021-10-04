@@ -63,3 +63,6 @@ def _get_config(args):
         second_config = config
 
     return config, second_config
+
+def isnan(x):
+    return x != x

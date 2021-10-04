@@ -24,7 +24,7 @@ def graph_matching_fusion( args, networks:list ):
         networks[1], and return a list that contains the averaged aligned parameters, following
         the original order of parameters in model.parameters()
 
-    the averaging weights are specified in [args.weight]
+    the averaging weights are specified in [args.ensemble_step, 1-args.ensemble_step]
     '''
     '''
     count the number of nodes in network[0] and network[1], and store them
@@ -58,8 +58,10 @@ def graph_matching_fusion( args, networks:list ):
     is_conv = False
     pre_conv = False
     pre_conv_kernel_size = None
+    pre_conv_out_channel = 1
     is_bias = False
     is_final_bias = False
+    perm_is_complete = True
 
     named_weight_list_0 = [named_parameter for named_parameter in networks[0].named_parameters()]
     for idx, ( (_, fc_layer0_weight), (_, fc_layer1_weight) ) in \
@@ -70,7 +72,7 @@ def graph_matching_fusion( args, networks:list ):
         if len( layer_shape ) > 1:
             # if it's a fully-connected layer after a convolutional layer
             if pre_conv is True and len( layer_shape ) == 2:
-                num_nodes_pre = int( fc_layer0_weight.shape[1] / pre_conv_kernel_size ** 2 )
+                num_nodes_pre = pre_conv_out_channel
             else:
                 num_nodes_pre = fc_layer0_weight.shape[1]
         '''
@@ -79,8 +81,15 @@ def graph_matching_fusion( args, networks:list ):
         # if is_bias is False:
         #     pre_conv = is_conv
         #     pre_conv_list.append( pre_conv )
+        if len( named_weight_list_0[idx-1][1].shape ) == 1:
+            pre_bias = True
+        else:
+            pre_bias = False
         if len( layer_shape ) > 2:
             is_bias = False
+            if pre_bias == False:
+                pre_conv = is_conv
+                pre_conv_list.append( pre_conv )
             is_conv = True
             # For convolutional layers, it is (#out_channels, #in_channels, height, width)
             fc_layer0_weight_data = fc_layer0_weight.data.view(
@@ -89,16 +98,25 @@ def graph_matching_fusion( args, networks:list ):
                 fc_layer1_weight.shape[0], fc_layer1_weight.shape[1], -1)
         elif len( layer_shape ) == 2:
             is_bias = False
+            if pre_bias == False:
+                pre_conv = is_conv
+                pre_conv_list.append( pre_conv )
             is_conv = False
             fc_layer0_weight_data = fc_layer0_weight.data
             fc_layer1_weight_data = fc_layer1_weight.data
         else:
             is_bias = True
-            pre_conv = is_conv
-            pre_conv_list.append( pre_conv )
+            if pre_bias == False:
+                pre_conv = is_conv
+                pre_conv_list.append( pre_conv )
             is_conv = False
             fc_layer0_weight_data = fc_layer0_weight.data
             fc_layer1_weight_data = fc_layer1_weight.data
+        '''
+        if it's conv, update [pre_conv_out_channel]
+        '''
+        if is_conv:
+            pre_conv_out_channel = num_nodes_cur
         '''
         tell whether it's the final bias layer
         '''
@@ -124,9 +142,15 @@ def graph_matching_fusion( args, networks:list ):
         '''
         calculate the edge-wise soft affinities between two models
         '''
-        ground_metric = gm.Ground_Metric_GM( 
-            fc_layer0_weight_data, fc_layer1_weight_data, is_conv, is_bias,
-            pre_conv, pre_conv_kernel_size )
+        if is_bias is False:
+            ground_metric = gm.Ground_Metric_GM( 
+                fc_layer0_weight_data, fc_layer1_weight_data, is_conv, is_bias,
+                pre_conv, int( fc_layer0_weight_data.shape[1] / pre_conv_out_channel ) )
+        else:
+            ground_metric = gm.Ground_Metric_GM( 
+                fc_layer0_weight_data, fc_layer1_weight_data, is_conv, is_bias,
+                pre_conv, 1 )
+            
         layer_affinity = ground_metric.process_soft_affinity( p=2 )
         # print( f'is_conf = {is_conv}, fc layer shape is {fc_layer0_weight.shape}' )
         if is_bias is False:
@@ -142,7 +166,7 @@ def graph_matching_fusion( args, networks:list ):
                     affinity[(num_nodes_before + a) * n2 + num_nodes_before + c] \
                             [(num_nodes_before + a) * n2 + num_nodes_before + c] \
                     = layer_affinity[a][c]
-        else:
+        elif is_final_bias is False:
             for a in range( num_nodes_pre ):
                 for b in range( num_nodes_cur ):
                     affinity[ 
@@ -162,7 +186,7 @@ def graph_matching_fusion( args, networks:list ):
     '''
     solve the quadratic assignment problem by calling gurobipy package
     '''
-    solution = gb.gurobi_qap_solver( affinity, n1, n2 )
+    solution = gb.gurobi_qap_solver( affinity, n1, n2, time_limit=300 )
     
     # debug block begin (uncomment and unindent the following to debug)
         # torch. set_printoptions(profile="full")
@@ -217,6 +241,8 @@ def graph_matching_fusion( args, networks:list ):
                 between layer i-1 and layer i
         '''
         perm = solution[num_before:num_before+num_cur, num_before:num_before+num_cur]
+        if torch.sum( perm ).item() != perm.shape[0]:
+            perm_is_complete = False
         '''
         permutate the rows of parameters between previous layer and current layer
         if the current layer is convolutional:
@@ -262,11 +288,16 @@ def graph_matching_fusion( args, networks:list ):
             continue
         if pre_conv and len( named_weight_list_0[idx][1].shape ) == 2:
             aligned_wt_0[idx] = ( aligned_wt_0[idx].to(torch.float64) \
-                .reshape( aligned_wt_0[idx].shape[0], -1, cur_kernel_size**2 ) \
+                .reshape( aligned_wt_0[idx].shape[0], pre_conv_out_channel, -1 ) \
                 .permute( 0, 2, 1 ) \
                 @ perm.to(torch.float64) ) \
                 .permute( 0, 2, 1 ) \
                 .reshape( aligned_wt_0[idx].shape[0], -1 )
+        elif len( named_weight_list_0[idx][1].shape ) == 4:
+            aligned_wt_0[idx] = ( aligned_wt_0[idx].to(torch.float64) \
+                .permute( 2, 3, 0, 1 ) \
+                @ perm.to(torch.float64) ) \
+                .permute( 2, 3, 0, 1 )
         else:
             aligned_wt_0[idx] = aligned_wt_0[idx].to(torch.float64) @ perm.to(torch.float64)
     assert idx == num_layers
@@ -277,26 +308,26 @@ def graph_matching_fusion( args, networks:list ):
     #         weights are \n{aligned_wt}' )
     # debug block end
     '''
-    average the parameters of model 1 and model 2 according to the weights given by [args.weight], 
+    average the parameters of model 1 and model 2 according to the weights given by [args.ensemble_step, 1-args.ensemble_step], 
         then store the results in a list, and return the list
     '''
     averaged_weights = []
     for idx, parameter in enumerate( networks[1].parameters() ):
-        averaged_weights.append( args.weight[0] * aligned_wt_0[idx] + args.weight[1] * parameter )
-    return averaged_weights
+        averaged_weights.append( (1 - args.ensemble_step) * aligned_wt_0[idx] + args.ensemble_step * parameter )
+    return averaged_weights, perm_is_complete
 
 
 def get_fused_model( args, networks:list ):
     '''
     the input [parameters] is a list consisting of tensors
     '''
-    parameters = graph_matching_fusion( args, networks )
+    parameters, perm_is_complete = graph_matching_fusion( args, networks )
     fused_model = model.get_model_from_name( args )
     state_dict = fused_model.state_dict()
     for idx, (key, _) in enumerate( state_dict.items() ):
         state_dict[key] = parameters[idx]
     fused_model.load_state_dict( state_dict )
-    return fused_model
+    return fused_model, perm_is_complete
 
 
 
@@ -353,7 +384,7 @@ if __name__ == "__main__":
     call the fusion function to check the affinity matrix and the solution
     '''
     # print( graph_matching_fusion( args, [model1, model2] ) )
-    print( get_fused_model( args, [model1, model2] ).state_dict() )
+    print( get_fused_model( args, [model1, model2] ) )
     # print('##########################################################')
 
 
@@ -391,5 +422,5 @@ if __name__ == "__main__":
     '''
     # print('##########################################################')
     # print( graph_matching_fusion( args, [model3, model4] ) )
-    print( get_fused_model( args, [model3, model4] ).state_dict() )
+    print( get_fused_model( args, [model3, model4] ) )
     
