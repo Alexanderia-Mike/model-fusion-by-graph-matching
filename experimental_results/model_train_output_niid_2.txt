@@ -1,0 +1,278 @@
+model1 accuracy = 91.25%, model2 accuracy = 80.03%
+##########################################
+weight is [0.0, 1.0]
+
+------- Naive ensembling of weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -9.5222, Accuracy: 9125/10000 (91%)
+
+------- Prediction based ensembling -------
+
+Test set: Avg. loss: -9.5222, Accuracy: 9125/10000 (91%)
+
+------- OT based Ensembling on weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -9.5221, Accuracy: 9125/10000 (91%)
+
+------- gm based Ensembling -------
+Academic license - for non-commercial use only - expires 2022-09-18
+Using license file /home/louchenfei/gurobi.lic
+
+Test set: Avg. loss: -9.5222, Accuracy: 9125/10000 (91%)
+
+completeness is True
+time consumed: 303.5074092778377
+##########################################
+weight is [0.1, 0.9]
+
+------- Naive ensembling of weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -7.1793, Accuracy: 9318/10000 (93%)
+
+------- Prediction based ensembling -------
+
+Test set: Avg. loss: -9.5860, Accuracy: 9382/10000 (94%)
+
+------- OT based Ensembling on weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -8.6628, Accuracy: 9344/10000 (93%)
+
+------- gm based Ensembling -------
+
+Test set: Avg. loss: -8.5681, Accuracy: 9322/10000 (93%)
+
+completeness is True
+time consumed: 303.37017921404913
+##########################################
+weight is [0.2, 0.8]
+
+------- Naive ensembling of weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -5.2836, Accuracy: 9389/10000 (94%)
+
+------- Prediction based ensembling -------
+
+Test set: Avg. loss: -9.6497, Accuracy: 9585/10000 (96%)
+
+------- OT based Ensembling on weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -7.9795, Accuracy: 9487/10000 (95%)
+
+------- gm based Ensembling -------
+
+Test set: Avg. loss: -7.8048, Accuracy: 9497/10000 (95%)
+
+completeness is True
+time consumed: 303.3858528379351
+##########################################
+weight is [0.3, 0.7]
+
+------- Naive ensembling of weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -3.8611, Accuracy: 8930/10000 (89%)
+
+------- Prediction based ensembling -------
+
+Test set: Avg. loss: -9.7135, Accuracy: 9683/10000 (97%)
+
+------- OT based Ensembling on weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -7.4941, Accuracy: 9531/10000 (95%)
+
+------- gm based Ensembling -------
+
+Test set: Avg. loss: -7.2567, Accuracy: 9565/10000 (96%)
+
+completeness is True
+time consumed: 303.3068234026432
+##########################################
+weight is [0.4, 0.6]
+
+------- Naive ensembling of weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -2.9821, Accuracy: 7769/10000 (78%)
+
+------- Prediction based ensembling -------
+
+Test set: Avg. loss: -9.7772, Accuracy: 9680/10000 (97%)
+
+------- OT based Ensembling on weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -7.2220, Accuracy: 9471/10000 (95%)
+
+------- gm based Ensembling -------
+
+Test set: Avg. loss: -6.9446, Accuracy: 9509/10000 (95%)
+
+completeness is True
+time consumed: 303.42612642096356
+##########################################
+weight is [0.5, 0.5]
+
+------- Naive ensembling of weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -2.7137, Accuracy: 7191/10000 (72%)
+
+------- Prediction based ensembling -------
+
+Test set: Avg. loss: -9.8409, Accuracy: 9598/10000 (96%)
+
+------- OT based Ensembling on weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -7.1724, Accuracy: 9233/10000 (92%)
+
+------- gm based Ensembling -------
+
+Test set: Avg. loss: -6.8806, Accuracy: 9302/10000 (93%)
+
+completeness is True
+time consumed: 303.42480421066284
+##########################################
+weight is [0.6, 0.4]
+
+------- Naive ensembling of weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -3.0809, Accuracy: 6941/10000 (69%)
+
+------- Prediction based ensembling -------
+
+Test set: Avg. loss: -9.9047, Accuracy: 9353/10000 (94%)
+
+------- OT based Ensembling on weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -7.3472, Accuracy: 8884/10000 (89%)
+
+------- gm based Ensembling -------
+
+Test set: Avg. loss: -7.0660, Accuracy: 8909/10000 (89%)
+
+completeness is True
+time consumed: 303.4840977592394
+##########################################
+weight is [0.7, 0.30000000000000004]
+
+------- Naive ensembling of weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -4.0421, Accuracy: 7045/10000 (70%)
+
+------- Prediction based ensembling -------
+
+Test set: Avg. loss: -9.9684, Accuracy: 8993/10000 (90%)
+
+------- OT based Ensembling on weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -7.7407, Accuracy: 8583/10000 (86%)
+
+------- gm based Ensembling -------
+
+Test set: Avg. loss: -7.4971, Accuracy: 8557/10000 (86%)
+
+completeness is True
+time consumed: 303.3020820696838
+##########################################
+weight is [0.8, 0.19999999999999996]
+
+------- Naive ensembling of weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -5.5592, Accuracy: 7387/10000 (74%)
+
+------- Prediction based ensembling -------
+
+Test set: Avg. loss: -10.0321, Accuracy: 8623/10000 (86%)
+
+------- OT based Ensembling on weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -8.3461, Accuracy: 8374/10000 (84%)
+
+------- gm based Ensembling -------
+
+Test set: Avg. loss: -8.1641, Accuracy: 8336/10000 (83%)
+
+completeness is True
+time consumed: 303.4168869210407
+##########################################
+weight is [0.9, 0.09999999999999998]
+
+------- Naive ensembling of weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -7.6027, Accuracy: 7759/10000 (78%)
+
+------- Prediction based ensembling -------
+
+Test set: Avg. loss: -10.0959, Accuracy: 8312/10000 (83%)
+
+------- OT based Ensembling on weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -9.1550, Accuracy: 8200/10000 (82%)
+
+------- gm based Ensembling -------
+
+Test set: Avg. loss: -9.0556, Accuracy: 8162/10000 (82%)
+
+completeness is True
+time consumed: 303.30439434805885
+##########################################
+weight is [1.0, 0.0]
+
+------- Naive ensembling of weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -10.1596, Accuracy: 8003/10000 (80%)
+
+------- Prediction based ensembling -------
+
+Test set: Avg. loss: -10.1596, Accuracy: 8003/10000 (80%)
+
+------- OT based Ensembling on weights -------
+
+Testing in global mode
+
+Test set: Avg. loss: -10.1596, Accuracy: 8003/10000 (80%)
+
+------- gm based Ensembling -------
+
+Test set: Avg. loss: -10.1596, Accuracy: 8003/10000 (80%)
+
+completeness is True
+time consumed: 305.0626001949422

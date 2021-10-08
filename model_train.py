@@ -25,15 +25,15 @@ import fusion_gm
 # training_mode = 'iid'
 training_mode = 'niid'
 
+model_source = 'retrain'
+# model_source = 'load'
+
 '''
 device configuration
 '''
 # device = torch.device( 'cuda' if torch.cuda.is_available() else 'cpu' )
 device = torch.device( 'cpu' )
 
-'''
-hyperparameters
-'''
 args = utils_gm.dotdict( {
     "device": device,
     "model_name": "simplemnistnet",
@@ -118,117 +118,131 @@ test_loader = torch.utils.data.DataLoader(
 	batch_size=args.batch_size,
 	shuffle=False )
 
-'''
-define the neural network class
-'''
+if model_source == 'retrain':
+    '''
+    define the neural network class
+    '''
+    model1 = model_gm.get_model_from_name( args )
+    model2 = model_gm.get_model_from_name( args )
 
-model1 = model_gm.get_model_from_name( args )
-model2 = model_gm.get_model_from_name( args )
+    '''
+    define the loss and optimizer
+    '''
+    criterion = nn.CrossEntropyLoss()
+    optimizer1 = torch.optim.SGD( model1.parameters(), lr=args.learning_rate )
+    optimizer2 = torch.optim.SGD( model2.parameters(), lr=args.learning_rate )
 
-'''
-define the loss and optimizer
-'''
-criterion = nn.CrossEntropyLoss()
-optimizer1 = torch.optim.SGD( model1.parameters(), lr=args.learning_rate )
-optimizer2 = torch.optim.SGD( model2.parameters(), lr=args.learning_rate )
+    '''
+    training loops for model1
+    '''
+    num_total_steps = len( train_loader )
+    for epoch in range( args.num_epochs ):
+        for i, ( images, labels ) in enumerate( train_loader ):
+            if training_mode == 'same':
+                pass
+            elif training_mode == 'iid':
+                if i % 2 == 0:
+                    continue
+            elif training_mode == 'niid':
+                # only digit 4 for first two thirds, and all other digits for the final third
+                if i % 5 != 0:
+                    mask = (labels == 4)
+                else:
+                    mask = (labels != 4)
+                labels = labels[mask]
+                images = images[mask]
+                if labels.shape[0] == 0:
+                    continue
+            else:    
+                raise NotImplementedError
+            '''
+            size: 	100, 1, 28, 28
+            '''
+            images = images.to( device )
+            labels = labels.to( device )
+            
+            outputs1 = model1( images )
+            
+            '''
+            cross entropy loss calculation whose
+                first argument is prediction of size [num_samples] x [num_categories]
+                second argument is true label of size [num_samples] x 1
+            '''
+            loss = criterion( outputs1, labels )
+            
+            optimizer1.zero_grad()
+            loss.backward()
+            
+            optimizer1.step()
+            
+            if ( i + 1 ) % 100 == 0:
+                print( f'epoch {epoch + 1} / {args.num_epochs}, \
+                    step {i + 1} / {num_total_steps}, \
+                    loss = {loss.item():.4f}' )
 
-'''
-training loops for model1
-'''
-num_total_steps = len( train_loader )
-for epoch in range( args.num_epochs ):
-    for i, ( images, labels ) in enumerate( train_loader ):
-        if training_mode == 'same':
-            pass
-        elif training_mode == 'iid':
-            if i % 2 == 0:
-                continue
-        elif training_mode == 'niid':
-            # only select the digits whose values are neither 0 nor 1
-            mask = ( (labels != 0).to(torch.int) * (labels != 1).to(torch.int) ).to(torch.bool)
-            labels = labels[mask]
-            images = images[mask]
-        else:    
-            raise NotImplementedError
-        '''
-        size: 	100, 1, 28, 28
-        '''
-        images = images.to( device )
-        labels = labels.to( device )
-        
-        outputs1 = model1( images )
-        
-        '''
-        cross entropy loss calculation whose
-	        first argument is prediction of size [num_samples] x [num_categories]
-	        second argument is true label of size [num_samples] x 1
-        '''
-        loss = criterion( outputs1, labels )
-        
-        optimizer1.zero_grad()
-        loss.backward()
-        
-        optimizer1.step()
-        
-        if ( i + 1 ) % 100 == 0:
-            print( f'epoch {epoch + 1} / {args.num_epochs}, \
-            	step {i + 1} / {num_total_steps}, \
-            	loss = {loss.item():.4f}' )
+    '''
+    training loops for model2
+    '''
+    num_total_steps = len( train_loader )
+    for epoch in range( args.num_epochs ):
+        for i, ( images, labels ) in enumerate( train_loader ):
+            if training_mode == 'same':
+                pass
+            elif training_mode == 'iid':
+                if i % 2 == 1:
+                    continue
+            elif training_mode == 'niid':
+                # all digits except for 4 for first two thirds, and onlyt digit 4 for the final third
+                if i % 5 != 0:
+                    mask = (labels != 4)
+                else:
+                    mask = (labels == 4)
+                labels = labels[mask]
+                images = images[mask]
+                if labels.shape[0] == 0:
+                    continue
+            else:    
+                raise NotImplementedError
+            '''
+            size: 	100, 1, 28, 28
+            '''
+            images = images.to( device )
+            labels = labels.to( device )
+            
+            outputs2 = model2( images )
+            
+            '''
+            cross entropy loss calculation whose
+                first argument is prediction of size [num_samples] x [num_categories]
+                second argument is true label of size [num_samples] x 1
+            '''
+            loss = criterion( outputs2, labels )
+            
+            optimizer2.zero_grad()
+            loss.backward()
+            
+            optimizer2.step()
+            
+            if ( i + 1 ) % 100 == 0:
+                print( f'epoch {epoch + 1} / {args.num_epochs}, \
+                    step {i + 1} / {num_total_steps}, \
+                    loss = {loss.item():.4f}' )
 
-'''
-training loops for model2
-'''
-num_total_steps = len( train_loader )
-for epoch in range( args.num_epochs ):
-    for i, ( images, labels ) in enumerate( train_loader ):
-        if training_mode == 'same':
-            pass
-        elif training_mode == 'iid':
-            if i % 2 == 1:
-                continue
-        elif training_mode == 'niid':
-            # only select the digits whose values are neither 8 nor 9
-            mask = ( (labels != 8).to(torch.int) * (labels != 9).to(torch.int) ).to(torch.bool)
-            labels = labels[mask]
-            images = images[mask]
-        else:    
-            raise NotImplementedError
-        '''
-        size: 	100, 1, 28, 28
-        '''
-        images = images.to( device )
-        labels = labels.to( device )
-        
-        outputs2 = model2( images )
-        
-        '''
-        cross entropy loss calculation whose
-	        first argument is prediction of size [num_samples] x [num_categories]
-	        second argument is true label of size [num_samples] x 1
-        '''
-        loss = criterion( outputs2, labels )
-        
-        optimizer2.zero_grad()
-        loss.backward()
-        
-        optimizer2.step()
-        
-        if ( i + 1 ) % 100 == 0:
-            print( f'epoch {epoch + 1} / {args.num_epochs}, \
-            	step {i + 1} / {num_total_steps}, \
-            	loss = {loss.item():.4f}' )
+    '''
+    save the model1 and model2
+    '''
+    torch.save( model1, './saved_models/simplenet1_niid.pt' )
+    torch.save( model2, './saved_models/simplenet2_niid.pt' )
 
-'''
-save the model1 and model2
-'''
-torch.save( model1, './saved_models/simplenet1_niid.pt' )
-torch.save( model2, './saved_models/simplenet2_niid.pt' )
+elif model_source == 'load':
+    '''
+    load the model1 and model2
+    '''
+    model1 = torch.load( './saved_models/simplenet1.pt' )
+    model2 = torch.load( './saved_models/simplenet2.pt' )
 
-'''
-load the model1 and model2
-'''
-# model1 = torch.load( './saved_models/simplenet1.pt' )
-# model2 = torch.load( './saved_models/simplenet2.pt' )
+else:
+    raise NotImplementedError
 
 '''
 testing for models
